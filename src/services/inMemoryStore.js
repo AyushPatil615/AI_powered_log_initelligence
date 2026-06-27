@@ -8,8 +8,10 @@ const { parseLogFile } = require('../parsers/logParser');
 
 let logs = [];       // All parsed log objects
 let isLoaded = false;
+let currentFilePath = path.resolve(__dirname, '../../dataset/Apache_2k.log');
+let currentFileName = 'Apache_2k.log (sample)';
 
-const LOG_FILE_PATH = path.resolve(__dirname, '../../dataset/Apache_2k.log');
+const DEFAULT_LOG_FILE = path.resolve(__dirname, '../../dataset/Apache_2k.log');
 
 /**
  * Loads and parses the log file into memory.
@@ -21,9 +23,32 @@ function loadLogs() {
     return;
   }
 
-  logs = parseLogFile(LOG_FILE_PATH);
+  logs = parseLogFile(DEFAULT_LOG_FILE);
+  currentFilePath = DEFAULT_LOG_FILE;
+  currentFileName = 'Apache_2k.log (sample)';
   isLoaded = true;
   console.log('[inMemoryStore] Logs loaded into memory. Total: ' + logs.length);
+}
+
+/**
+ * Reloads logs from a new file path (e.g. after a user uploads a dataset).
+ * Replaces the current in-memory store entirely.
+ * @param {string} filePath - Absolute path to the new log file
+ * @param {string} fileName - Display name shown in the UI
+ */
+function reloadLogs(filePath, fileName) {
+  logs = parseLogFile(filePath);
+  currentFilePath = filePath;
+  currentFileName = fileName || path.basename(filePath);
+  isLoaded = true;
+  console.log('[inMemoryStore] Reloaded logs from: ' + fileName + '. Total: ' + logs.length);
+}
+
+/**
+ * Returns the display name of the currently loaded dataset.
+ */
+function getLoadedFileName() {
+  return currentFileName;
 }
 
 /**
@@ -100,6 +125,8 @@ function getStats() {
 
 module.exports = {
   loadLogs,
+  reloadLogs,
+  getLoadedFileName,
   getAllLogs,
   getLogsByLevel,
   getLogsByCategory,
