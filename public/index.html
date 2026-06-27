@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Log Intelligence Engine</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #ffffff;
+      color: #111111;
+      min-height: 100vh;
+    }
+
+    /* ── Header ─────────────────────────────────── */
+    header {
+      background: #111111;
+      color: #ffffff;
+      padding: 18px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 3px solid #000000;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo {
+      width: 36px;
+      height: 36px;
+      background: #ffffff;
+      color: #111111;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    header h1 {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    header p {
+      font-size: 12px;
+      color: #888888;
+      margin-top: 2px;
+    }
+
+    .header-badge {
+      padding: 5px 12px;
+      background: #222222;
+      border: 1px solid #444444;
+      border-radius: 20px;
+      font-size: 11px;
+      color: #aaaaaa;
+      font-weight: 500;
+    }
+
+    /* ── Stats Bar ──────────────────────────────── */
+    #stats-bar {
+      background: #f8f8f8;
+      border-bottom: 1px solid #e5e5e5;
+      padding: 10px 40px;
+      display: flex;
+      gap: 32px;
+      font-size: 13px;
+      color: #555555;
+      overflow-x: auto;
+    }
+
+    #stats-bar span b {
+      color: #111111;
+      font-weight: 600;
+    }
+
+    /* ── Main Layout ────────────────────────────── */
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 36px 24px;
+    }
+
+    /* ── Page Title ─────────────────────────────── */
+    .page-title {
+      margin-bottom: 28px;
+    }
+
+    .page-title h2 {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: #111111;
+    }
+
+    .page-title p {
+      font-size: 14px;
+      color: #666666;
+      margin-top: 4px;
+    }
+
+    /* ── Tabs ───────────────────────────────────── */
+    .tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 28px;
+      border: 1px solid #e5e5e5;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #f8f8f8;
+      padding: 4px;
+      gap: 4px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 10px 16px;
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      color: #777777;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      font-family: 'Inter', sans-serif;
+      transition: all 0.15s;
+    }
+
+    .tab-btn:hover {
+      color: #111111;
+      background: #eeeeee;
+    }
+
+    .tab-btn.active {
+      background: #111111;
+      color: #ffffff;
+    }
+
+    /* ── Tab Panels ─────────────────────────────── */
+    .tab-panel {
+      display: none;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    /* ── Card ───────────────────────────────────── */
+    .card {
+      background: #ffffff;
+      border: 1px solid #e5e5e5;
+      border-radius: 10px;
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+
+    .card h2 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #111111;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .method-badge {
+      padding: 3px 10px;
+      background: #111111;
+      color: #ffffff;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .card p.desc {
+      font-size: 13px;
+      color: #777777;
+      margin-bottom: 16px;
+      line-height: 1.6;
+    }
+
+    /* ── Textarea ───────────────────────────────── */
+    textarea {
+      width: 100%;
+      background: #fafafa;
+      border: 1px solid #e5e5e5;
+      border-radius: 6px;
+      color: #111111;
+      padding: 12px 14px;
+      font-size: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.15s;
+      line-height: 1.6;
+    }
+
+    textarea:focus {
+      border-color: #111111;
+    }
+
+    /* ── Button ─────────────────────────────────── */
+    .run-btn {
+      margin-top: 14px;
+      padding: 10px 24px;
+      background: #111111;
+      border: 2px solid #111111;
+      border-radius: 6px;
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .run-btn:hover {
+      background: #333333;
+      border-color: #333333;
+    }
+
+    .run-btn:disabled {
+      background: #bbbbbb;
+      border-color: #bbbbbb;
+      cursor: not-allowed;
+    }
+
+    /* ── Response Box ───────────────────────────── */
+    .response-box {
+      margin-top: 24px;
+      border: 1px solid #e5e5e5;
+      border-radius: 8px;
+      overflow: hidden;
+      display: none;
+    }
+
+    .response-box.visible {
+      display: block;
+    }
+
+    .response-header {
+      background: #f8f8f8;
+      border-bottom: 1px solid #e5e5e5;
+      padding: 10px 16px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .badge {
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 11px;
+      letter-spacing: 0.3px;
+    }
+
+    .badge.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    .badge.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+
+    .badge.time {
+      background: #f8f8f8;
+      color: #555555;
+      border: 1px solid #dddddd;
+    }
+
+    .response-json {
+      background: #111111;
+      padding: 16px 18px;
+      font-size: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      color: #e5e5e5;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 480px;
+      overflow-y: auto;
+      line-height: 1.7;
+    }
+
+    /* ── Spinner ────────────────────────────────── */
+    .spinner {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid #555555;
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* ── Divider ─────────────────────────────────── */
+    hr {
+      border: none;
+      border-top: 1px solid #e5e5e5;
+      margin: 8px 0;
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #f8f8f8;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #cccccc;
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #999999;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="header-left">
+      <div class="logo">AI</div>
+      <div>
+        <h1>AI Log Intelligence Engine</h1>
+        <p>Apache Log Analysis · Gemini 2.5 Flash</p>
+      </div>
+    </div>
+    <div class="header-badge">● Live</div>
+  </header>
+
+  <!-- Stats Bar -->
+  <div id="stats-bar">
+    <span>Loading stats...</span>
+  </div>
+
+  <!-- Main -->
+  <main>
+    <div class="page-title">
+      <h2>Log Analysis Dashboard</h2>
+      <p>Select an analysis type below to run AI-powered insights on the loaded Apache log dataset.</p>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('classification', this)">📊 Log Classification</button>
+      <button class="tab-btn" onclick="switchTab('timeline', this)">📅 Incident Timeline</button>
+      <button class="tab-btn" onclick="switchTab('rootcause', this)">🔎 Root Cause Analysis</button>
+    </div>
+
+    <!-- Tab 1: Classification -->
+    <div id="tab-classification" class="tab-panel active">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2>/api/ai/log-classification</h2>
+            <p class="desc" style="margin-top:6px; margin-bottom:0">
+              Paste one or more raw Apache log lines below (one per line).
+              Leave empty to auto-classify a smart sample from the loaded dataset.
+            </p>
+          </div>
+          <span class="method-badge">POST</span>
+        </div>
+        <textarea id="input-classification" rows="5"
+          placeholder="[Sun Dec 04 04:47:44 2005] [notice] workerEnv.init() ok /etc/httpd/conf/workers2.properties&#10;[Sun Dec 04 04:47:44 2005] [error] mod_jk child workerEnv in error state 6"></textarea>
+        <button class="run-btn" id="btn-classification" onclick="runClassification()">▶ Run Classification</button>
+
+        <div class="response-box" id="res-classification">
+          <div class="response-header">
+            <span class="badge" id="badge-classification-status"></span>
+            <span class="badge time" id="badge-classification-time"></span>
+          </div>
+          <pre class="response-json" id="json-classification"></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: Timeline -->
+    <div id="tab-timeline" class="tab-panel">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2>/api/ai/incident-timeline</h2>
+            <p class="desc" style="margin-top:6px; margin-bottom:0">
+              Generates a chronological incident timeline from the loaded Apache log dataset.
+              No input required — click Run to generate.
+            </p>
+          </div>
+          <span class="method-badge">POST</span>
+        </div>
+        <button class="run-btn" id="btn-timeline" onclick="runTimeline()">▶ Generate Timeline</button>
+
+        <div class="response-box" id="res-timeline">
+          <div class="response-header">
+            <span class="badge" id="badge-timeline-status"></span>
+            <span class="badge time" id="badge-timeline-time"></span>
+          </div>
+          <pre class="response-json" id="json-timeline"></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 3: Root Cause -->
+    <div id="tab-rootcause" class="tab-panel">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2>/api/ai/root-cause-analysis</h2>
+            <p class="desc" style="margin-top:6px; margin-bottom:0">
+              Analyzes error logs to determine the most probable root cause of the incident.
+              No input required — the engine focuses on error-level logs automatically.
+            </p>
+          </div>
+          <span class="method-badge">POST</span>
+        </div>
+        <button class="run-btn" id="btn-rootcause" onclick="runRootCause()">▶ Analyze Root Cause</button>
+
+        <div class="response-box" id="res-rootcause">
+          <div class="response-header">
+            <span class="badge" id="badge-rootcause-status"></span>
+            <span class="badge time" id="badge-rootcause-time"></span>
+          </div>
+          <pre class="response-json" id="json-rootcause"></pre>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // ── Tab switching ─────────────────────────────
+    function switchTab(name, btn) {
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-' + name).classList.add('active');
+      btn.classList.add('active');
+    }
+
+    // ── Load stats on page load ───────────────────
+    async function loadStats() {
+      try {
+        const res = await fetch('/api/health');
+        const json = await res.json();
+        const s = json.data;
+        document.getElementById('stats-bar').innerHTML =
+          '<span>Total Logs: <b>' + s.total + '</b></span>' +
+          '<span>Errors: <b>' + s.errorCount + '</b></span>' +
+          '<span>Notices: <b>' + s.noticeCount + '</b></span>' +
+          '<span>Unique Client IPs: <b>' + s.uniqueClientIps + '</b></span>' +
+          '<span>From: <b>' + (s.timeRange.first || 'N/A') + '</b></span>' +
+          '<span>To: <b>' + (s.timeRange.last || 'N/A') + '</b></span>';
+      } catch (e) {
+        document.getElementById('stats-bar').innerHTML = '<span style="color:#c00">Could not load stats.</span>';
+      }
+    }
+
+    // ── Generic API caller ────────────────────────
+    async function callApi(endpoint, body, btnId, resId, statusBadgeId, timeBadgeId, jsonId, btnLabel) {
+      const btn = document.getElementById(btnId);
+      const resBox = document.getElementById(resId);
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Running...';
+
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const json = await res.json();
+
+        document.getElementById(statusBadgeId).textContent = json.success ? '✓ Success' : '✗ Error';
+        document.getElementById(statusBadgeId).className = 'badge ' + (json.success ? 'success' : 'error');
+        document.getElementById(timeBadgeId).textContent = '⏱ ' + json.processingTimeMs + ' ms';
+        document.getElementById(jsonId).textContent = JSON.stringify(json, null, 2);
+        resBox.classList.add('visible');
+
+      } catch (err) {
+        document.getElementById(statusBadgeId).textContent = '✗ Network Error';
+        document.getElementById(statusBadgeId).className = 'badge error';
+        document.getElementById(jsonId).textContent = err.message;
+        resBox.classList.add('visible');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '▶ ' + btnLabel;
+      }
+    }
+
+    function runClassification() {
+      const raw = document.getElementById('input-classification').value.trim();
+      const logs = raw ? raw.split('\n').filter(l => l.trim()) : [];
+      callApi('/api/ai/log-classification', logs.length > 0 ? { logs } : {},
+        'btn-classification', 'res-classification',
+        'badge-classification-status', 'badge-classification-time', 'json-classification', 'Run Classification');
+    }
+
+    function runTimeline() {
+      callApi('/api/ai/incident-timeline', {},
+        'btn-timeline', 'res-timeline',
+        'badge-timeline-status', 'badge-timeline-time', 'json-timeline', 'Generate Timeline');
+    }
+
+    function runRootCause() {
+      callApi('/api/ai/root-cause-analysis', {},
+        'btn-rootcause', 'res-rootcause',
+        'badge-rootcause-status', 'badge-rootcause-time', 'json-rootcause', 'Analyze Root Cause');
+    }
+
+    loadStats();
+  </script>
+
+</body>
+
+</html>
