@@ -469,6 +469,183 @@
     ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.28); }
 
+    /* ── Rich Result Renderers ── */
+    .result-meta {
+      display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+      padding: 10px 16px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+    }
+    .meta-badge {
+      padding: 3px 10px; border-radius: 6px;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.3px;
+    }
+    .meta-badge.ok  { background:rgba(22,163,74,0.1); color:#15803d; border:1px solid rgba(22,163,74,0.2); }
+    .meta-badge.err { background:rgba(220,38,38,0.08); color:#b91c1c; border:1px solid rgba(220,38,38,0.18); }
+    .meta-badge.dim { background:var(--surface2); color:var(--muted2); border:1px solid var(--border); }
+    .meta-badge.cache { background:rgba(139,92,246,0.1); color:#7c3aed; border:1px solid rgba(139,92,246,0.2); }
+
+    .rich-result { padding: 16px 20px; display:flex; flex-direction:column; gap:12px; }
+
+    /* ── Category summary bar ── */
+    .cat-summary {
+      display: flex; flex-wrap: wrap; gap: 6px;
+      padding: 12px 16px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+    }
+    .cat-pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 12px; border-radius: 20px; cursor: pointer;
+      font-size: 11px; font-weight: 700; border: 1.5px solid transparent;
+      transition: all 0.15s; user-select: none;
+    }
+    .cat-pill .pill-count {
+      background: rgba(0,0,0,0.12); border-radius: 10px;
+      padding: 0 6px; font-size: 10px;
+    }
+    .cat-pill.active { border-color: currentColor; }
+    .cat-pill:hover { opacity: 0.8; }
+    .cat-pill.all { background:rgba(0,0,0,0.06); color:var(--text); }
+
+    /* ── Result toolbar ── */
+    .result-toolbar {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      padding: 8px 16px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+    }
+    .toolbar-search {
+      flex: 1; min-width: 160px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 7px; padding: 5px 10px;
+      font-size: 12px; font-family: 'JetBrains Mono', monospace;
+      color: var(--text); outline: none;
+    }
+    .toolbar-search:focus { border-color: #18181b; }
+    .toolbar-btn {
+      padding: 5px 12px; border-radius: 7px; border: 1px solid var(--border);
+      background: var(--surface); font-size: 11px; font-weight: 600;
+      color: var(--muted2); cursor: pointer; transition: all 0.15s;
+      font-family: 'Inter', sans-serif;
+    }
+    .toolbar-btn:hover { border-color: #18181b; color: var(--text); }
+    .toolbar-btn.active { background: #18181b; color: #fff; border-color: #18181b; }
+
+    /* ── JSON toggle panel ── */
+    .json-panel {
+      display: none;
+      background: #1c1c1e;
+      padding: 16px 20px;
+      font-size: 11.5px; font-family: 'JetBrains Mono', monospace;
+      color: #d4d4d8; white-space: pre-wrap; word-break: break-all;
+      max-height: 340px; overflow-y: auto; line-height: 1.7;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .json-panel.open { display: block; animation: fadeIn 0.2s ease; }
+
+    /* ── Classification cards ── */
+    .cls-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      transition: border-color 0.15s;
+    }
+    .cls-card[data-hidden] { display: none; }
+    .cls-card:hover { border-color: rgba(0,0,0,0.2); }
+    .cls-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 14px; cursor: pointer; user-select: none;
+    }
+    .cls-chevron { font-size: 10px; color: var(--muted); margin-left: auto; transition: transform 0.2s; }
+    .cls-card.expanded .cls-chevron { transform: rotate(180deg); }
+    .cls-body { display: none; padding: 0 14px 12px; border-top: 1px solid var(--border); margin-top: 2px; }
+    .cls-card.expanded .cls-body { display: block; }
+    .cls-top { display:flex; align-items:center; gap:8px; }
+    .cls-line { font-size:10px; color:var(--muted); font-family:'JetBrains Mono',monospace; }
+    .cls-cat {
+      font-size: 12px; font-weight: 700;
+      padding: 2px 10px; border-radius: 5px;
+    }
+    .cat-startup         { background:rgba(16,185,129,0.12); color:#065f46; }
+    .cat-shutdown        { background:rgba(107,114,128,0.12); color:#374151; }
+    .cat-config          { background:rgba(59,130,246,0.12); color:#1e40af; }
+    .cat-worker          { background:rgba(251,191,36,0.15); color:#92400e; }
+    .cat-backend         { background:rgba(239,68,68,0.1); color:#991b1b; }
+    .cat-warning         { background:rgba(245,158,11,0.12); color:#92400e; }
+    .cat-error           { background:rgba(220,38,38,0.12); color:#991b1b; }
+    .cat-performance     { background:rgba(139,92,246,0.12); color:#5b21b6; }
+    .cat-security        { background:rgba(239,68,68,0.15); color:#7f1d1d; }
+    .cat-unknown         { background:rgba(107,114,128,0.1); color:#6b7280; }
+    .cls-conf { display:flex; align-items:center; gap:6px; margin-top:8px; }
+    .conf-bar-bg { flex:1; height:4px; background:rgba(0,0,0,0.08); border-radius:2px; }
+    .conf-bar-fill { height:4px; border-radius:2px; background:#18181b; transition:width 0.4s; }
+    .conf-label { font-size:11px; font-weight:700; color:var(--muted2); min-width:36px; }
+    .cls-expl { font-size:12px; color:var(--muted2); line-height:1.55; margin-top:6px; }
+
+    /* Timeline cards */
+    .tl-list { display:flex; flex-direction:column; gap:0; position:relative; }
+    .tl-list::before {
+      content:''; position:absolute; left:18px; top:0; bottom:0;
+      width:2px; background:var(--border); border-radius:1px;
+    }
+    .tl-item { display:flex; gap:14px; padding:8px 0; }
+    .tl-dot-wrap { position:relative; z-index:1; width:38px; flex-shrink:0; display:flex; justify-content:center; padding-top:4px; }
+    .tl-dot {
+      width:14px; height:14px; border-radius:50%; border:2px solid var(--surface);
+      box-shadow:0 0 0 2px currentColor;
+    }
+    .tl-dot.info    { color:#34d399; background:#34d399; }
+    .tl-dot.warning { color:#f59e0b; background:#f59e0b; }
+    .tl-dot.error   { color:#f87171; background:#f87171; }
+    .tl-body { flex:1; }
+    .tl-ts { font-size:10px; color:var(--muted); font-family:'JetBrains Mono',monospace; margin-bottom:2px; }
+    .tl-title { font-size:14px; font-weight:700; color:var(--text); }
+    .tl-summary { font-size:12px; color:var(--muted2); line-height:1.55; margin-top:4px; }
+    .tl-refs { margin-top:6px; display:flex; flex-wrap:wrap; gap:4px; }
+    .tl-ref { font-size:10px; font-weight:600; padding:1px 7px; border-radius:4px;
+              background:rgba(0,0,0,0.06); color:var(--muted2); }
+
+    /* Root Cause */
+    .rca-section { display:flex; flex-direction:column; gap:6px; }
+    .rca-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--muted); }
+    .rca-rootcause { font-size:15px; font-weight:700; color:var(--text); line-height:1.4; }
+    .rca-impact { font-size:13px; color:var(--muted2); line-height:1.5; }
+    .rca-list { list-style:none; display:flex; flex-direction:column; gap:6px; }
+    .rca-list li { display:flex; gap:8px; font-size:12px; color:var(--muted2); line-height:1.5; }
+    .rca-list li::before { content:'→'; color:var(--accent); flex-shrink:0; font-weight:700; }
+    .rca-conf-row { display:flex; align-items:center; gap:10px; }
+    .rca-conf-num { font-size:22px; font-weight:800; font-family:'JetBrains Mono',monospace; }
+    .rca-components { display:flex; flex-wrap:wrap; gap:6px; }
+    .rca-comp { font-size:11px; font-weight:600; padding:3px 10px; border-radius:6px;
+                background:rgba(0,0,0,0.06); color:var(--muted2); }
+    .divider { border:none; border-top:1px solid var(--border); margin:4px 0; }
+
+    /* ── Executive Summary ── */
+    .sum-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:16px; }
+    .sum-stat {
+      background:var(--surface2); border:1px solid var(--border);
+      border-radius:10px; padding:14px 16px; text-align:center;
+    }
+    .sum-stat-num { font-size:24px; font-weight:800; font-family:'JetBrains Mono',monospace; }
+    .sum-stat-lbl { font-size:10px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.8px; margin-top:2px; }
+    .sum-section { margin-bottom:16px; }
+    .sum-section-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin-bottom:8px; }
+    .sum-text { font-size:13px; color:var(--muted2); line-height:1.7; padding:14px 16px; background:var(--surface2); border-radius:10px; border:1px solid var(--border); }
+    .sum-bar-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+    .sum-bar-label { font-size:11px; font-weight:600; min-width:160px; color:var(--muted2); }
+    .sum-bar-bg { flex:1; height:6px; background:rgba(0,0,0,0.07); border-radius:3px; }
+    .sum-bar-fill { height:6px; border-radius:3px; background:#18181b; }
+    .sum-bar-n { font-size:11px; color:var(--muted); min-width:28px; text-align:right; }
+    .sum-alert { padding:10px 14px; border-radius:8px; font-size:12px; font-weight:600; margin-bottom:8px; }
+    .sum-alert.warn  { background:rgba(245,158,11,0.1); color:#92400e; border:1px solid rgba(245,158,11,0.2); }
+    .sum-alert.error { background:rgba(239,68,68,0.08); color:#991b1b; border:1px solid rgba(239,68,68,0.18); }
+    .sum-alert.ok    { background:rgba(16,185,129,0.08); color:#065f46; border:1px solid rgba(16,185,129,0.18); }
+    .sum-rca-box { padding:14px 16px; background:var(--surface2); border-radius:10px; border:1px solid var(--border); }
+    .sum-rca-title { font-size:13px; font-weight:700; color:var(--text); margin-bottom:6px; }
+    .sum-rca-body  { font-size:12px; color:var(--muted2); line-height:1.6; }
+
     /* ── Tab panel ── */
     .tab-panel { display: none; }
     .tab-panel.active { display: block; animation: fadeIn 0.25s ease; }
@@ -713,6 +890,9 @@
       <button class="tab-btn" id="tab-btn-dataset" onclick="switchTab('dataset', this)">
         <span class="tab-icon">🗂️</span> Dataset
       </button>
+      <button class="tab-btn" onclick="switchTab('summary', this)">
+        <span class="tab-icon">📋</span> Summary
+      </button>
     </div>
 
     <!-- Tab 1: Classification -->
@@ -732,13 +912,7 @@
         <textarea id="input-classification" rows="5"
           placeholder="[Sun Dec 04 04:47:44 2005] [notice] workerEnv.init() ok /etc/httpd/conf/workers2.properties&#10;[Sun Dec 04 04:47:44 2005] [error] mod_jk child workerEnv in error state 6"></textarea>
         <button class="run-btn" id="btn-classification" onclick="runClassification()">▶ Run Classification</button>
-        <div class="response-box" id="res-classification">
-          <div class="response-header">
-            <span class="badge" id="badge-classification-status"></span>
-            <span class="badge time" id="badge-classification-time"></span>
-          </div>
-          <pre class="response-json" id="json-classification"></pre>
-        </div>
+        <div class="response-box" id="res-classification"></div>
       </div>
     </div>
 
@@ -757,13 +931,7 @@
           No input required — click Run to generate.
         </p>
         <button class="run-btn" id="btn-timeline" onclick="runTimeline()">▶ Generate Timeline</button>
-        <div class="response-box" id="res-timeline">
-          <div class="response-header">
-            <span class="badge" id="badge-timeline-status"></span>
-            <span class="badge time" id="badge-timeline-time"></span>
-          </div>
-          <pre class="response-json" id="json-timeline"></pre>
-        </div>
+        <div class="response-box" id="res-timeline"></div>
       </div>
     </div>
 
@@ -782,13 +950,7 @@
           No input required — the engine focuses on error-level logs automatically.
         </p>
         <button class="run-btn" id="btn-rootcause" onclick="runRootCause()">▶ Analyze Root Cause</button>
-        <div class="response-box" id="res-rootcause">
-          <div class="response-header">
-            <span class="badge" id="badge-rootcause-status"></span>
-            <span class="badge time" id="badge-rootcause-time"></span>
-          </div>
-          <pre class="response-json" id="json-rootcause"></pre>
-        </div>
+        <div class="response-box" id="res-rootcause"></div>
       </div>
     </div>
 
@@ -854,9 +1016,223 @@
         </div>
       </div>
     </div>
+
+    <!-- Tab 5: Executive Summary -->
+    <div id="tab-summary" class="tab-panel">
+      <div class="card">
+        <div class="section-label">
+          <div class="section-icon" style="background:rgba(139,92,246,0.1)">📋</div>
+          <div class="section-label-text">
+            <h3>Executive Summary</h3>
+            <p>Local intelligence derived from dataset stats &amp; AI results</p>
+          </div>
+        </div>
+        <p class="card-desc">Instant operational overview — no additional AI call required. Run the three AI features first to unlock the full summary.</p>
+        <button class="run-btn" id="btn-summary" onclick="buildSummary()">📋 Generate Summary</button>
+        <div id="summary-output" style="margin-top:20px"></div>
+      </div>
+    </div>
   </main>
 
   <script>
+    // ── Category → CSS class map ──────────────────────────────────────────────
+    const CAT_CLASS = {
+      'Startup':'cat-startup','Shutdown':'cat-shutdown','Configuration':'cat-config',
+      'Worker Initialization':'cat-worker','Backend Communication':'cat-backend',
+      'Warning':'cat-warning','Error':'cat-error','Performance':'cat-performance',
+      'Security':'cat-security','Unknown':'cat-unknown'
+    };
+
+    // ── Render helpers ────────────────────────────────────────────────────────
+    // Store last raw JSON per feature for the toggle
+    const _lastJson = {};
+
+    function metaBadges(json, feature) {
+      const ok = json.success;
+      let h = `<div class="result-meta">`;
+      h += `<span class="meta-badge ${ok?'ok':'err'}">${ok?'✓ Success':'✗ Error'}</span>`;
+      h += `<span class="meta-badge dim">⏱ ${json.processingTimeMs} ms</span>`;
+      if (json.model) h += `<span class="meta-badge dim">🤖 ${json.model}</span>`;
+      if (json.fromCache) h += `<span class="meta-badge cache">⚡ Cached</span>`;
+      if (json.data?.logsAnalyzed) h += `<span class="meta-badge dim">${json.data.logsAnalyzed} logs analysed</span>`;
+      if (feature) h += `<button class="toolbar-btn" style="margin-left:auto" onclick="toggleJson('${feature}')">{ } JSON</button>`;
+      h += `</div>`;
+      if (feature) h += `<div class="json-panel" id="json-${feature}"></div>`;
+      return h;
+    }
+
+    function toggleJson(feature) {
+      const panel = document.getElementById('json-' + feature);
+      if (!panel) return;
+      const btn = panel.previousElementSibling.querySelector('button');
+      if (panel.classList.toggle('open')) {
+        panel.textContent = JSON.stringify(_lastJson[feature] || {}, null, 2);
+        if (btn) btn.classList.add('active');
+      } else {
+        if (btn) btn.classList.remove('active');
+      }
+    }
+
+    function renderClassification(json) {
+      _lastJson['classification'] = json;
+      let h = metaBadges(json, 'classification');
+      if (!json.success || !json.data?.classifications?.length) {
+        return h + `<div class="rich-result"><p style="color:var(--muted)">${json.message||'No results.'}</p></div>`;
+      }
+      const cls = json.data.classifications;
+
+      // Build category counts for summary pills
+      const counts = {};
+      cls.forEach(c => { counts[c.category] = (counts[c.category]||0) + 1; });
+
+      // Category summary bar
+      h += `<div class="cat-summary" id="cls-pills">`;
+      h += `<span class="cat-pill all active" onclick="filterCls('',this)">All <span class="pill-count">${cls.length}</span></span>`;
+      Object.entries(counts).sort((a,b)=>b[1]-a[1]).forEach(([cat,n]) => {
+        const cc = CAT_CLASS[cat]||'cat-unknown';
+        h += `<span class="cat-pill ${cc}" onclick="filterCls('${cat}',this)">${cat} <span class="pill-count">${n}</span></span>`;
+      });
+      h += `</div>`;
+
+      // Toolbar: search + expand/collapse
+      h += `<div class="result-toolbar">`;
+      h += `<input class="toolbar-search" id="cls-search" placeholder="Search line # or keyword..." oninput="searchCls(this.value)"/>`;
+      h += `<button class="toolbar-btn" onclick="expandAllCls(true)">Expand All</button>`;
+      h += `<button class="toolbar-btn" onclick="expandAllCls(false)">Collapse All</button>`;
+      h += `</div>`;
+
+      // Cards (collapsed by default)
+      h += `<div class="rich-result" id="cls-cards">`;
+      cls.forEach(function(c, i) {
+        const pct = Math.round((c.confidence||0)*100);
+        const cc  = CAT_CLASS[c.category]||'cat-unknown';
+        h += `<div class="cls-card" data-cat="${c.category}" data-line="${c.lineNumber}" data-expl="${(c.explanation||'').toLowerCase()}" onclick="this.classList.toggle('expanded')">
+          <div class="cls-header">
+            <span class="cls-line">Line ${c.lineNumber}</span>
+            <span class="cls-cat ${cc}">${c.category}</span>
+            <span style="font-size:11px;color:var(--muted2);margin-left:4px">${pct}%</span>
+            <span class="cls-chevron">▼</span>
+          </div>
+          <div class="cls-body">
+            <div class="cls-conf">
+              <div class="conf-bar-bg"><div class="conf-bar-fill" style="width:${pct}%"></div></div>
+              <span class="conf-label">${pct}%</span>
+            </div>
+            <div class="cls-expl">${c.explanation||''}</div>
+          </div>
+        </div>`;
+      });
+      h += `</div>`;
+      return h;
+    }
+
+    // Filter cards by category pill
+    function filterCls(cat, pillEl) {
+      document.querySelectorAll('#cls-pills .cat-pill').forEach(p => p.classList.remove('active'));
+      if (pillEl) pillEl.classList.add('active');
+      document.querySelectorAll('#cls-cards .cls-card').forEach(card => {
+        const match = !cat || card.dataset.cat === cat;
+        match ? card.removeAttribute('data-hidden') : card.setAttribute('data-hidden','1');
+      });
+    }
+
+    // Filter cards by search query
+    function searchCls(q) {
+      const lq = q.toLowerCase().trim();
+      document.querySelectorAll('#cls-cards .cls-card').forEach(card => {
+        const match = !lq ||
+          card.dataset.line.includes(lq) ||
+          card.dataset.cat.toLowerCase().includes(lq) ||
+          card.dataset.expl.includes(lq);
+        match ? card.removeAttribute('data-hidden') : card.setAttribute('data-hidden','1');
+      });
+      // Reset pill active state when searching
+      if (lq) {
+        document.querySelectorAll('#cls-pills .cat-pill').forEach(p => p.classList.remove('active'));
+      }
+    }
+
+    // Expand or collapse all visible cards
+    function expandAllCls(expand) {
+      document.querySelectorAll('#cls-cards .cls-card:not([data-hidden])').forEach(card => {
+        expand ? card.classList.add('expanded') : card.classList.remove('expanded');
+      });
+    }
+
+    function renderTimeline(json) {
+      _lastJson['timeline'] = json;
+      let h = metaBadges(json, 'timeline');
+      if (!json.success || !json.data?.timeline?.length) {
+        return h + `<div class="rich-result"><p style="color:var(--muted)">${json.message||'No results.'}</p></div>`;
+      }
+      h += `<div class="rich-result"><div class="tl-list">`;
+      json.data.timeline.forEach(function(ev) {
+        const sev = ev.severity||'info';
+        const refs = (ev.logRefs||[]).map(r=>`<span class="tl-ref">L${r}</span>`).join('');
+        h += `<div class="tl-item">
+          <div class="tl-dot-wrap"><div class="tl-dot ${sev}"></div></div>
+          <div class="tl-body">
+            <div class="tl-ts">${ev.timestamp||''}</div>
+            <div class="tl-title">${ev.eventTitle||''}</div>
+            <div class="tl-summary">${ev.summary||''}</div>
+            ${refs?`<div class="tl-refs">${refs}</div>`:''}
+          </div>
+        </div>`;
+      });
+      h += `</div></div>`;
+      return h;
+    }
+
+    function renderRootCause(json) {
+      _lastJson['rootcause'] = json;
+      let h = metaBadges(json, 'rootcause');
+      if (!json.success || !json.data?.rootCause) {
+        return h + `<div class="rich-result"><p style="color:var(--muted)">${json.message||'No results.'}</p></div>`;
+      }
+      const d = json.data;
+      const pct = d.confidence!=null ? Math.round(d.confidence*100) : null;
+      const evidence = (d.evidence||[]).map(e=>`<li>${e}</li>`).join('');
+      const steps = (d.remediationSteps||[]).map(s=>`<li>${s}</li>`).join('');
+      const comps = (d.affectedComponents||[]).map(c=>`<span class="rca-comp">${c}</span>`).join('');
+      h += `<div class="rich-result">
+        <div class="rca-section">
+          <span class="rca-label">Root Cause</span>
+          <div class="rca-rootcause">${d.rootCause}</div>
+        </div>
+        <hr class="divider">
+        <div class="rca-section">
+          <span class="rca-label">Supporting Evidence</span>
+          <ul class="rca-list">${evidence}</ul>
+        </div>
+        <hr class="divider">
+        <div class="rca-section">
+          <span class="rca-label">Impact</span>
+          <div class="rca-impact">${d.impact}</div>
+        </div>
+        <hr class="divider">
+        <div class="rca-section">
+          <span class="rca-label">Remediation Steps</span>
+          <ul class="rca-list">${steps}</ul>
+        </div>
+        ${pct!==null?`<hr class="divider">
+        <div class="rca-section">
+          <span class="rca-label">Confidence</span>
+          <div class="rca-conf-row">
+            <span class="rca-conf-num">${pct}%</span>
+            <div class="conf-bar-bg" style="flex:1"><div class="conf-bar-fill" style="width:${pct}%"></div></div>
+          </div>
+          ${d.confidenceRationale?`<div class="cls-expl">${d.confidenceRationale}</div>`:''}
+        </div>`:''}
+        ${comps?`<hr class="divider">
+        <div class="rca-section">
+          <span class="rca-label">Affected Components</span>
+          <div class="rca-components">${comps}</div>
+        </div>`:''}
+      </div>`;
+      return h;
+    }
+
+    // ── Tab switching ─────────────────────────────────────────────────────────
     function switchTab(name, btn) {
       document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -991,27 +1367,133 @@
       }
     }
 
-    async function callApi(endpoint, body, btnId, resId, statusId, timeId, jsonId, label) {
-      const btn = document.getElementById(btnId);
+    // ── Executive Summary (local, no LLM) ─────────────────────────────────────
+    async function buildSummary() {
+      const out = document.getElementById('summary-output');
+      out.innerHTML = '<p style="color:var(--muted);font-size:13px">Loading dataset stats...</p>';
+
+      let stats, healthJson;
+      try {
+        const res = await fetch('/api/health');
+        healthJson = await res.json();
+        stats = healthJson.data;
+      } catch(e) {
+        out.innerHTML = '<p style="color:#b91c1c">Failed to fetch stats.</p>';
+        return;
+      }
+
+      const total   = stats.total || 0;
+      const errors  = stats.errorCount || 0;
+      const warns   = stats.warnCount || 0;
+      const notices = stats.noticeCount || 0;
+      const ips     = stats.uniqueClientIps || 0;
+      const cats    = stats.categoryBreakdown || {};
+      const errRate = total ? ((errors / total) * 100).toFixed(1) : 0;
+
+      // Health signal
+      const alertClass = errors > 50 ? 'error' : errors > 10 ? 'warn' : 'ok';
+      const alertMsg   = errors > 50
+        ? `⚠ High error rate detected: ${errors} errors out of ${total} log entries (${errRate}%).`
+        : errors > 10
+        ? `⚡ Moderate errors detected: ${errors} errors (${errRate}%).`
+        : `✓ System appears healthy: only ${errors} errors in ${total} log entries.`;
+
+      // Category distribution bars
+      const maxCat = Math.max(...Object.values(cats), 1);
+      const catBars = Object.entries(cats)
+        .sort((a,b) => b[1]-a[1])
+        .map(([cat,n]) => {
+          const pct = Math.round((n/maxCat)*100);
+          return `<div class="sum-bar-row">
+            <span class="sum-bar-label">${cat}</span>
+            <div class="sum-bar-bg"><div class="sum-bar-fill" style="width:${pct}%"></div></div>
+            <span class="sum-bar-n">${n}</span>
+          </div>`;
+        }).join('');
+
+      // Build plain-text operational summary
+      const topCat   = Object.entries(cats).sort((a,b)=>b[1]-a[1])[0];
+      const timeFrom = stats.timeRange?.first || 'unknown';
+      const timeTo   = stats.timeRange?.last  || 'unknown';
+      const summaryText =
+        `Dataset "${healthJson?.dataset || 'Apache_2k.log'}" spans from ${timeFrom} to ${timeTo}, ` +
+        `containing ${total.toLocaleString()} log entries across ${Object.keys(cats).length} categories. ` +
+        `The dominant event type is "${topCat?.[0] || 'Unknown'}" (${topCat?.[1] || 0} entries). ` +
+        `Error rate is ${errRate}% (${errors} errors, ${warns} warnings, ${notices} notices). ` +
+        `${ips} unique client IPs were observed.` +
+        (errors > 0 ? ` Immediate attention may be required for error-level events.` : ` No critical failures detected.`);
+
+      // RCA summary if available
+      const rcaData = _lastJson['rootcause']?.data;
+      const rcaHtml = rcaData?.rootCause
+        ? `<div class="sum-section">
+            <div class="sum-section-title">AI Root Cause (from last analysis)</div>
+            <div class="sum-rca-box">
+              <div class="sum-rca-title">${rcaData.rootCause}</div>
+              <div class="sum-rca-body">${rcaData.impact || ''}</div>
+            </div>
+           </div>`
+        : `<div class="sum-section">
+            <div class="sum-section-title">AI Root Cause</div>
+            <div class="sum-text" style="color:var(--muted)">Run Root Cause Analysis first to populate this section.</div>
+           </div>`;
+
+      // Timeline summary if available
+      const tlData = _lastJson['timeline']?.data?.timeline || [];
+      const tlHtml = tlData.length
+        ? `<div class="sum-section">
+            <div class="sum-section-title">Timeline Highlights (${tlData.length} events)</div>
+            ${tlData.filter(e=>e.severity==='error'||e.severity==='warning').slice(0,3).map(e=>
+              `<div class="sum-alert ${e.severity==='error'?'error':'warn'}">
+                ${e.severity==='error'?'⚠':'⚡'} <strong>${e.eventTitle}</strong> — ${e.summary?.substring(0,120)}...
+              </div>`
+            ).join('') || '<div class="sum-alert ok">✓ No critical timeline events detected.</div>'}
+           </div>`
+        : `<div class="sum-section">
+            <div class="sum-section-title">Timeline Highlights</div>
+            <div class="sum-text" style="color:var(--muted)">Run Incident Timeline first to populate this section.</div>
+           </div>`;
+
+      out.innerHTML = `
+        <div class="sum-grid">
+          <div class="sum-stat"><div class="sum-stat-num" style="color:#a5b4fc">${total.toLocaleString()}</div><div class="sum-stat-lbl">Total Logs</div></div>
+          <div class="sum-stat"><div class="sum-stat-num" style="color:#f87171">${errors}</div><div class="sum-stat-lbl">Errors</div></div>
+          <div class="sum-stat"><div class="sum-stat-num" style="color:#fbbf24">${warns}</div><div class="sum-stat-lbl">Warnings</div></div>
+          <div class="sum-stat"><div class="sum-stat-num" style="color:#34d399">${notices}</div><div class="sum-stat-lbl">Notices</div></div>
+          <div class="sum-stat"><div class="sum-stat-num" style="color:#f59e0b">${ips}</div><div class="sum-stat-lbl">Unique IPs</div></div>
+          <div class="sum-stat"><div class="sum-stat-num">${errRate}%</div><div class="sum-stat-lbl">Error Rate</div></div>
+        </div>
+        <div class="sum-section">
+          <div class="sum-section-title">Health Signal</div>
+          <div class="sum-alert ${alertClass}">${alertMsg}</div>
+        </div>
+        <div class="sum-section">
+          <div class="sum-section-title">Operational Narrative</div>
+          <div class="sum-text">${summaryText}</div>
+        </div>
+        <div class="sum-section">
+          <div class="sum-section-title">Category Distribution</div>
+          ${catBars}
+        </div>
+        ${rcaHtml}
+        ${tlHtml}
+      `;
+    }
+
+    async function callApi(endpoint, body, btnId, resId, renderFn, label) {
+      const btn    = document.getElementById(btnId);
       const resBox = document.getElementById(resId);
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner"></span> Running...';
+      resBox.innerHTML = '';
+      resBox.classList.remove('visible');
       try {
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
-        });
+        const res  = await fetch(endpoint, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
         const json = await res.json();
-        document.getElementById(statusId).textContent = json.success ? '✓ Success' : '✗ Error';
-        document.getElementById(statusId).className = 'badge ' + (json.success ? 'success' : 'error');
-        document.getElementById(timeId).textContent = '⏱ ' + json.processingTimeMs + ' ms';
-        document.getElementById(jsonId).textContent = JSON.stringify(json, null, 2);
+        resBox.innerHTML = renderFn(json);
         resBox.classList.add('visible');
       } catch (err) {
-        document.getElementById(statusId).textContent = '✗ Network Error';
-        document.getElementById(statusId).className = 'badge error';
-        document.getElementById(jsonId).textContent = err.message;
+        resBox.innerHTML = `<div class="result-meta"><span class="meta-badge err">✗ Network Error</span></div><div class="rich-result"><p style="color:var(--muted)">${err.message}</p></div>`;
         resBox.classList.add('visible');
       } finally {
         btn.disabled = false;
@@ -1020,23 +1502,20 @@
     }
 
     function runClassification() {
-      const raw = document.getElementById('input-classification').value.trim();
+      const raw  = document.getElementById('input-classification').value.trim();
       const logs = raw ? raw.split('\n').filter(l => l.trim()) : [];
       callApi('/api/ai/log-classification', logs.length > 0 ? { logs } : {},
-        'btn-classification', 'res-classification',
-        'badge-classification-status', 'badge-classification-time', 'json-classification', 'Run Classification');
+        'btn-classification', 'res-classification', renderClassification, 'Run Classification');
     }
 
     function runTimeline() {
       callApi('/api/ai/incident-timeline', {},
-        'btn-timeline', 'res-timeline',
-        'badge-timeline-status', 'badge-timeline-time', 'json-timeline', 'Generate Timeline');
+        'btn-timeline', 'res-timeline', renderTimeline, 'Generate Timeline');
     }
 
     function runRootCause() {
       callApi('/api/ai/root-cause-analysis', {},
-        'btn-rootcause', 'res-rootcause',
-        'badge-rootcause-status', 'badge-rootcause-time', 'json-rootcause', 'Analyze Root Cause');
+        'btn-rootcause', 'res-rootcause', renderRootCause, 'Analyze Root Cause');
     }
 
     loadStats();

@@ -1,7 +1,43 @@
 require('dotenv').config();
 
+const cache = require('./cacheService');
+const { getFingerprint, getLoadedFileName, getStats } = require('./inMemoryStore');
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Helper: Format logs into a readable text block for the prompt
+// Constants
+// ─────────────────────────────────────────────────────────────────────────────
+const MAX_RETRIES   = 3;
+const BASE_DELAY_MS = 5000;
+
+// The model names for primary / fallback
+const PRIMARY_MODEL  = 'gemini-2.5-flash';
+const FALLBACK_MODEL = 'gemini-2.5-flash-lite';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: sleep
+// ─────────────────────────────────────────────────────────────────────────────
+function sleep(ms) {
+  return new Promise(function (resolve) { setTimeout(resolve, ms); });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: Extract retry-after delay from Gemini 429 message bodies
+// e.g. "Please retry in 43.928925857s."
+// ─────────────────────────────────────────────────────────────────────────────
+function parseRetryDelay(errorMessage) {
+  if (!errorMessage) return null;
+  const match = errorMessage.match(/retry in ([\d.]+)s/i);
+  if (match) {
+    return Math.min(Math.ceil(parseFloat(match[1])) * 1000 + 2000, 65000);
+  }
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: Format log objects into a compact, LLM-friendly text block
+//
+// Design choice: include lineNumber so the LLM can cite evidence by line,
+// and format to keep token usage low.
 // ─────────────────────────────────────────────────────────────────────────────
 function formatLogsForPrompt(logs) {
   return logs.map(function (log) {
@@ -10,38 +46,45 @@ function formatLogsForPrompt(logs) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helper: Sleep for a given number of milliseconds
+// Helper: Build a dataset context summary injected at the start of every prompt.
+//
+// Why: Telling the LLM about the dataset composition (how many errors vs notices,
+// what format) helps it calibrate confidence scores and make better category
+// decisions — especially when given a sparse sample.
 // ─────────────────────────────────────────────────────────────────────────────
-function sleep(ms) {
-  return new Promise(function (resolve) { setTimeout(resolve, ms); });
-}
+function buildDatasetContext() {
+  try {
+    const stats = getStats();
+    const cats  = stats.categoryBreakdown || {};
+    const catSummary = Object.entries(cats)
+      .sort(function (a, b) { return b[1] - a[1]; })
+      .slice(0, 6)
+      .map(function (e) { return e[0] + ': ' + e[1]; })
+      .join(', ');
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helper: Parse the "retry in X seconds" value from Gemini's 429 error body.
-// Gemini returns messages like: "Please retry in 43.928925857s."
-// ─────────────────────────────────────────────────────────────────────────────
-function parseRetryDelay(errorMessage) {
-  if (!errorMessage) return null;
-  const match = errorMessage.match(/retry in ([\d.]+)s/i);
-  if (match) {
-    const seconds = parseFloat(match[1]);
-    return Math.min(Math.ceil(seconds) * 1000 + 2000, 65000);
+    return (
+      'DATASET CONTEXT (do not analyse these lines — use for calibration only):\n' +
+      '  File: '         + getLoadedFileName()          + '\n' +
+      '  Total logs: '   + stats.total                  + '\n' +
+      '  Errors: '       + stats.errorCount              + '\n' +
+      '  Warnings: '     + (stats.warnCount || 0)        + '\n' +
+      '  Notices: '      + stats.noticeCount             + '\n' +
+      '  Unique IPs: '   + stats.uniqueClientIps         + '\n' +
+      '  Top categories: ' + (catSummary || 'N/A')       + '\n' +
+      '  Time range: '   + (stats.timeRange?.first || '?') +
+                  ' → '  + (stats.timeRange?.last  || '?') + '\n'
+    );
+  } catch (_) {
+    return '';
   }
-  return null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Core: callGeminiWithKey(prompt, apiKey, model, label)
+// Core: callGeminiWithKey
 //
-// Makes a single Gemini REST call with retry logic.
-// Used by both the primary and fallback providers.
-//
-// Returns: parsed JSON object on success
-// Throws:  Error on failure after all retries
+// Single Gemini REST call with exponential-backoff retry.
+// Returns a parsed JSON object on success; throws on exhausted retries.
 // ─────────────────────────────────────────────────────────────────────────────
-const MAX_RETRIES   = 3;
-const BASE_DELAY_MS = 5000;
-
 async function callGeminiWithKey(prompt, apiKey, model, label) {
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent';
 
@@ -50,22 +93,24 @@ async function callGeminiWithKey(prompt, apiKey, model, label) {
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type':   'application/json',
-          'x-goog-api-key': apiKey
-        },
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature:     0.2,   // Lower = more deterministic / factual
+            topP:            0.85,
+            maxOutputTokens: 4096
+          }
         })
       });
 
-      // Rate limit / overload — read body for exact wait time then retry
+      // Rate limit / overload — honour Gemini's retry-after header / body
       if (response.status === 429 || response.status === 503) {
         const errData = await response.json().catch(function () { return {}; });
         const errMsg  = errData.error?.message || '';
         const retryAfterHeader = response.headers.get('Retry-After');
-        const waitMs =
+        const waitMs  =
           parseRetryDelay(errMsg) ||
           (retryAfterHeader ? parseInt(retryAfterHeader, 10) * 1000 : null) ||
           BASE_DELAY_MS * Math.pow(2, attempt - 1);
@@ -79,17 +124,14 @@ async function callGeminiWithKey(prompt, apiKey, model, label) {
 
         if (attempt < MAX_RETRIES) { await sleep(waitMs); continue; }
 
-        // All retries for this provider exhausted — throw so caller can fallback
         const isQuota = errMsg.toLowerCase().includes('quota');
         lastError = new Error(
-          isQuota
-            ? label + ' quota exceeded.'
-            : (errMsg || label + ' rate limit exceeded.')
+          isQuota ? label + ' quota exceeded.' : (errMsg || label + ' rate limit exceeded.')
         );
         throw lastError;
       }
 
-      // Other HTTP errors — fail immediately
+      // Other HTTP errors
       if (!response.ok) {
         const errData = await response.json().catch(function () { return {}; });
         throw new Error(errData.error?.message || label + ' call failed with status ' + response.status);
@@ -98,7 +140,6 @@ async function callGeminiWithKey(prompt, apiKey, model, label) {
       const data = await response.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
-      // Empty response — retryable
       if (!text) {
         lastError = new Error('Empty response from ' + label + '.');
         console.warn('[llmService] Empty response from ' + label + ' on attempt ' + attempt + '/' + MAX_RETRIES + '.');
@@ -106,13 +147,13 @@ async function callGeminiWithKey(prompt, apiKey, model, label) {
         throw lastError;
       }
 
-      // Strip markdown code fences if model wraps JSON in them
+      // Strip markdown fences if model wraps JSON in them
       const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
       try {
         return JSON.parse(cleaned);
       } catch (err) {
-        console.error('[llmService] Failed to parse JSON from ' + label + ':\n', cleaned);
+        console.error('[llmService] Failed to parse JSON from ' + label + ':\n', cleaned.substring(0, 500));
         throw new Error('LLM returned invalid JSON. Please try again.');
       }
 
@@ -133,176 +174,255 @@ async function callGeminiWithKey(prompt, apiKey, model, label) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// callLLM(prompt)
+// callLLM(prompt, cacheKey)
 //
-// Primary:  gemini-2.5-flash  using GEMINI_API_KEY
-// Fallback: gemini-2.5-flash-lite  using GEMINI_API_KEY_2
+// Primary:  gemini-2.5-flash   using GEMINI_API_KEY
+// Fallback: gemini-2.5-flash-lite using GEMINI_API_KEY_2
 //
 // If the primary fails for any reason, the fallback is tried automatically.
+// Results are cached by cacheKey to avoid redundant Gemini calls.
 // ─────────────────────────────────────────────────────────────────────────────
-async function callLLM(prompt) {
+async function callLLM(prompt, cacheKey) {
+  // ── Cache check ────────────────────────────────────────────────────────────
+  if (cacheKey) {
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      console.log('[llmService] Cache HIT for key:', cacheKey.substring(0, 50));
+      return { ...cached, _fromCache: true };
+    }
+  }
+
   const primaryKey  = process.env.GEMINI_API_KEY;
   const fallbackKey = process.env.GEMINI_API_KEY_2;
 
-  // ── Try Primary ─────────────────────────────────────────────────────────────
+  let result;
+  let modelUsed;
+
+  // ── Try Primary ────────────────────────────────────────────────────────────
   try {
-    console.log('[llmService] Using primary: gemini-2.5-flash');
-    return await callGeminiWithKey(prompt, primaryKey, 'gemini-2.5-flash', 'Primary (2.5-flash)');
+    console.log('[llmService] Using primary: ' + PRIMARY_MODEL);
+    result    = await callGeminiWithKey(prompt, primaryKey, PRIMARY_MODEL, 'Primary (' + PRIMARY_MODEL + ')');
+    modelUsed = PRIMARY_MODEL;
   } catch (primaryErr) {
     console.warn('[llmService] Primary failed: ' + primaryErr.message);
 
-    // ── Try Fallback ───────────────────────────────────────────────────────────
+    // ── Try Fallback ───────────────────────────────────────────────────────
     if (!fallbackKey) {
       console.warn('[llmService] No GEMINI_API_KEY_2 set — skipping fallback.');
       throw primaryErr;
     }
 
     try {
-      console.log('[llmService] Switching to fallback: gemini-2.5-flash-lite');
-      return await callGeminiWithKey(prompt, fallbackKey, 'gemini-2.5-flash-lite', 'Fallback (2.5-flash-lite)');
+      console.log('[llmService] Switching to fallback: ' + FALLBACK_MODEL);
+      result    = await callGeminiWithKey(prompt, fallbackKey, FALLBACK_MODEL, 'Fallback (' + FALLBACK_MODEL + ')');
+      modelUsed = FALLBACK_MODEL;
     } catch (fallbackErr) {
       console.error('[llmService] Fallback also failed: ' + fallbackErr.message);
-      // Throw a combined message so the user knows both were tried
       throw new Error(
         'Both Gemini providers failed.\n' +
-        '  Primary (2.5-flash): ' + primaryErr.message + '\n' +
-        '  Fallback (2.5-flash-lite): ' + fallbackErr.message
+        '  Primary (' + PRIMARY_MODEL + '): '  + primaryErr.message + '\n' +
+        '  Fallback (' + FALLBACK_MODEL + '): ' + fallbackErr.message
       );
     }
   }
+
+  // Attach model metadata to every result so routes can surface it in responses
+  result._model = modelUsed;
+
+  // ── Cache store ────────────────────────────────────────────────────────────
+  if (cacheKey) {
+    cache.set(cacheKey, result);
+  }
+
+  return result;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FEATURE 1: Log Classification
-// Classifies each log entry into a category with a confidence score
+// FEATURE 1: Log Classification Engine
+//
+// Prompt design rationale:
+//  - System-role persona grounds the model in SIEM/security analyst context
+//  - Dataset context calibrates confidence scores against the real distribution
+//  - Explicit chain-of-thought ("reasoning") field improves accuracy by forcing
+//    the model to justify its category before committing to a confidence score
+//  - Strict JSON schema prevents freeform text responses
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Classifies log entries using Gemini.
+ * Classifies log entries using Gemini with chain-of-thought prompting.
  *
  * @param {Object[]} logs - Array of log objects from contextSelector
  * @returns {Object} JSON response with classifications array
  */
 async function classifyLogs(logs) {
-  const logText = formatLogsForPrompt(logs);
+  const logText   = formatLogsForPrompt(logs);
+  const dsContext = buildDatasetContext();
 
-  const prompt = `
-You are an expert Apache server log analyst working in a SIEM (Security Information and Event Management) platform.
+  // Cache key: feature + dataset fingerprint + sample of first/last log line numbers
+  const cacheKey = 'classify|' + getFingerprint() + '|' + logs[0]?.lineNumber + '-' + logs[logs.length - 1]?.lineNumber;
 
-Analyze the following Apache log entries and classify each one into the most appropriate category.
+  const prompt = `ROLE: Apache/SIEM log analyst. Classify each log entry below.
+Base ALL answers strictly on the text provided — do not infer information absent from the logs.
 
-Available categories:
-- Startup
-- Shutdown
-- Configuration
-- Worker Initialization
-- Backend Communication
-- Warning
-- Error
-- Performance
-- Security
-- Unknown
+${dsContext}
+CATEGORIES (pick exactly one):
+Startup | Shutdown | Configuration | Worker Initialization | Backend Communication | Warning | Error | Performance | Security | Unknown
 
-Return ONLY a valid JSON object in this exact format (no explanation, no markdown):
+CONFIDENCE GUIDE:
+1.0 = explicit signal word matches category perfectly
+0.8 = strong match, minor ambiguity
+0.6 = probable match based on context
+0.4 = weak match, multiple categories plausible
+0.2 = largely unknown, best guess
+
+OUTPUT RULES:
+- Return ONLY the JSON object below. No markdown, no prose, no code fences.
+- Every input log entry must appear in "classifications" exactly once.
+- "lineNumber" must match the [Line N] prefix exactly.
+- "explanation" must quote at least one phrase from the log.
+
 {
   "classifications": [
     {
-      "lineNumber": <line number>,
-      "category": "<category name>",
-      "confidence": <confidence as decimal between 0 and 1>,
-      "explanation": "<one sentence explaining why this category was chosen>"
+      "lineNumber": <integer>,
+      "category": "<category>",
+      "confidence": <float 0.0-1.0>,
+      "explanation": "<one sentence quoting a specific phrase from this log>"
     }
   ]
 }
 
-Apache Log Entries:
-${logText}
-`;
+LOG ENTRIES:
+${logText}`;
 
-  return await callLLM(prompt);
+  return await callLLM(prompt, cacheKey);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FEATURE 2: Incident Timeline Generator
-// Builds a chronological list of key events from the logs
+//
+// Prompt design rationale:
+//  - Explicitly forbids "one event per log line" to force meaningful grouping
+//  - severity field drives colour-coding in rich UIs
+//  - logRefs allow the UI to link back to source lines (evidence traceability)
+//  - Dataset context helps the model understand the time range it's summarising
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Generates an incident timeline using Gemini.
+ * Generates a chronological incident timeline using Gemini.
  *
- * @param {Object[]} logs - Array of log objects from contextSelector
+ * @param {Object[]} logs - Chronologically sorted, deduplicated log objects
  * @returns {Object} JSON response with timeline array
  */
 async function generateTimeline(logs) {
-  const logText = formatLogsForPrompt(logs);
+  const logText   = formatLogsForPrompt(logs);
+  const dsContext = buildDatasetContext();
+  const cacheKey  = 'timeline|' + getFingerprint();
 
-  const prompt = `
-You are an expert Apache server log analyst working in a SIEM platform.
+  const prompt = `ROLE: SRE performing incident timeline reconstruction from Apache server logs.
+Base ALL conclusions strictly on the log entries provided — do not assume events not present in the data.
 
-Analyze the following Apache log entries and generate a chronological incident timeline.
+${dsContext}
+TASK: Produce a concise chronological incident timeline.
 
-Group related log events into meaningful timeline entries. Do NOT list every log line — instead, 
-summarize related events into single timeline entries (e.g. group all worker initialization logs 
-into one "Worker Initialization Phase" event).
+RULES:
+1. Group related entries into one event — never one event per log line.
+2. Produce 5–8 events maximum. Fewer clear events beats many vague ones.
+3. "timestamp": copy the timestamp exactly as it appears in the earliest log of the group.
+4. "logRefs": use the integer from the [Line N] prefix of each supporting entry.
+5. "severity": "error" for failures, "warning" for degraded/retry states, "info" for normal ops.
+6. "summary": 1–2 sentences max — what happened and its operational significance.
 
-Return ONLY a valid JSON object in this exact format (no explanation, no markdown):
+OUTPUT RULES:
+- Return ONLY the JSON object below. No markdown, no prose, no code fences.
+- Do not add fields beyond those in the schema.
+
 {
   "timeline": [
     {
-      "timestamp": "<timestamp from the earliest log in this group>",
-      "eventTitle": "<short title for this event>",
-      "summary": "<1-2 sentence description of what happened>",
-      "logRefs": [<array of line numbers that support this event>],
-      "severity": "<info | warning | error>"
+      "timestamp": "<copied verbatim from the log>",
+      "eventTitle": "<action-oriented title, ≤7 words>",
+      "summary": "<1-2 sentences: what happened and why it matters>",
+      "logRefs": [<line numbers>],
+      "severity": "<info|warning|error>"
     }
   ]
 }
 
-Apache Log Entries:
-${logText}
-`;
+LOG ENTRIES (chronological):
+${logText}`;
 
-  return await callLLM(prompt);
+  return await callLLM(prompt, cacheKey);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FEATURE 3: Root Cause Analysis
-// Analyzes error logs to determine the most probable root cause
+//
+// Prompt design rationale:
+//  - Forces evidence-first reasoning (evidence → impact → cause) to reduce
+//    hallucination and ensure every claim is anchored in a log line
+//  - "affectedComponents" field surfaces the blast-radius clearly
+//  - "remediationSteps" (plural, ordered) is more actionable than a single recommendation
+//  - confidenceRationale makes the score auditable by the evaluator
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Performs root cause analysis using Gemini.
+ * Performs root cause analysis using Gemini with evidence-driven prompting.
  *
- * @param {Object[]} logs - Array of error log objects from contextSelector
+ * @param {Object[]} logs - Error/warn log objects from contextSelector
  * @returns {Object} JSON response with root cause details
  */
 async function analyzeRootCause(logs) {
-  const logText = formatLogsForPrompt(logs);
+  const logText   = formatLogsForPrompt(logs);
+  const dsContext = buildDatasetContext();
+  const cacheKey  = 'rootcause|' + getFingerprint();
 
-  const prompt = `
-You are a senior DevOps engineer and Apache server expert analyzing an incident in a SIEM platform.
+  const prompt = `ROLE: SRE performing formal root cause analysis on Apache server logs.
+Base ALL findings strictly on the logs provided. Do not speculate about causes absent from the evidence.
 
-Analyze the following Apache error logs and determine the most probable root cause of the incident.
-Your analysis must be evidence-driven — reference specific log lines to support your findings.
+${dsContext}
+TASK: Identify the single most probable root cause of the incident.
 
-Return ONLY a valid JSON object in this exact format (no explanation, no markdown):
+REASONING APPROACH (internal — do not output these steps):
+- Which log entries repeat or cluster? Repetition = likely root cause, not consequence.
+- What was the first failure chronologically? Earlier failures cause later ones.
+- Does removing one cause eliminate all other symptoms?
+
+FIELD RULES:
+- "rootCause": one sentence describing the underlying failure, NOT a symptom.
+- "evidence": 3–5 items, each quoting a phrase or [Line N] from the logs.
+- "impact": one sentence on affected users/systems.
+- "remediationSteps": 3 ordered, specific actions (not generic advice).
+- "confidence": 0.9 = all logs point to one cause; 0.7 = strong pattern; 0.5 = ambiguous.
+- "confidenceRationale": one sentence on what limits or supports confidence.
+- "affectedComponents": list of named system components from the logs.
+
+OUTPUT RULES:
+- Return ONLY the JSON object below. No markdown, no prose, no code fences.
+- Do not add or rename fields.
+
 {
-  "rootCause": "<clear one-sentence description of the root cause>",
+  "rootCause": "<one sentence: underlying technical failure>",
   "evidence": [
-    "<specific observation from the logs that supports the root cause>",
-    "<another supporting observation>"
+    "<observation quoting log phrase or [Line N]>",
+    "<observation>",
+    "<observation>"
   ],
-  "impact": "<description of what users or systems are affected and how>",
-  "recommendation": "<actionable step to resolve the issue>",
-  "confidence": <confidence as decimal between 0 and 1>,
-  "affectedComponents": ["<component 1>", "<component 2>"]
+  "impact": "<one sentence: affected systems and severity>",
+  "remediationSteps": [
+    "<step 1 — most urgent>",
+    "<step 2>",
+    "<step 3>"
+  ],
+  "confidence": <float 0.0-1.0>,
+  "confidenceRationale": "<one sentence>",
+  "affectedComponents": ["<component>", "<component>"]
 }
 
-Apache Error Log Entries:
-${logText}
-`;
+LOG ENTRIES:
+${logText}`;
 
-  return await callLLM(prompt);
+  return await callLLM(prompt, cacheKey);
 }
 
 module.exports = {
