@@ -10,46 +10,165 @@ function formatLogsForPrompt(logs) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helper: Call Gemini REST API directly using fetch
-// This supports the new AQ. key format seamlessly
+// Helper: Sleep for a given number of milliseconds
 // ─────────────────────────────────────────────────────────────────────────────
-async function callGemini(prompt) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  const url = 'https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent';
+function sleep(ms) {
+  return new Promise(function (resolve) { setTimeout(resolve, ms); });
+}
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-goog-api-key': apiKey
-    },
-    body: JSON.stringify({
-      contents: [{
-        parts: [{ text: prompt }]
-      }]
-    })
-  });
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: Parse the "retry in X seconds" value from Gemini's 429 error body.
+// Gemini returns messages like: "Please retry in 43.928925857s."
+// ─────────────────────────────────────────────────────────────────────────────
+function parseRetryDelay(errorMessage) {
+  if (!errorMessage) return null;
+  const match = errorMessage.match(/retry in ([\d.]+)s/i);
+  if (match) {
+    const seconds = parseFloat(match[1]);
+    return Math.min(Math.ceil(seconds) * 1000 + 2000, 65000);
+  }
+  return null;
+}
 
-  if (!response.ok) {
-    const errData = await response.json();
-    throw new Error(errData.error?.message || 'Gemini API call failed');
+// ─────────────────────────────────────────────────────────────────────────────
+// Core: callGeminiWithKey(prompt, apiKey, model, label)
+//
+// Makes a single Gemini REST call with retry logic.
+// Used by both the primary and fallback providers.
+//
+// Returns: parsed JSON object on success
+// Throws:  Error on failure after all retries
+// ─────────────────────────────────────────────────────────────────────────────
+const MAX_RETRIES   = 3;
+const BASE_DELAY_MS = 5000;
+
+async function callGeminiWithKey(prompt, apiKey, model, label) {
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent';
+
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type':   'application/json',
+          'x-goog-api-key': apiKey
+        },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      });
+
+      // Rate limit / overload — read body for exact wait time then retry
+      if (response.status === 429 || response.status === 503) {
+        const errData = await response.json().catch(function () { return {}; });
+        const errMsg  = errData.error?.message || '';
+        const retryAfterHeader = response.headers.get('Retry-After');
+        const waitMs =
+          parseRetryDelay(errMsg) ||
+          (retryAfterHeader ? parseInt(retryAfterHeader, 10) * 1000 : null) ||
+          BASE_DELAY_MS * Math.pow(2, attempt - 1);
+
+        console.warn(
+          '[llmService] ' + label + ' ' + response.status +
+          ' — attempt ' + attempt + '/' + MAX_RETRIES +
+          '. Waiting ' + (waitMs / 1000).toFixed(1) + 's...' +
+          (errMsg ? ' (' + errMsg.substring(0, 80) + '...)' : '')
+        );
+
+        if (attempt < MAX_RETRIES) { await sleep(waitMs); continue; }
+
+        // All retries for this provider exhausted — throw so caller can fallback
+        const isQuota = errMsg.toLowerCase().includes('quota');
+        lastError = new Error(
+          isQuota
+            ? label + ' quota exceeded.'
+            : (errMsg || label + ' rate limit exceeded.')
+        );
+        throw lastError;
+      }
+
+      // Other HTTP errors — fail immediately
+      if (!response.ok) {
+        const errData = await response.json().catch(function () { return {}; });
+        throw new Error(errData.error?.message || label + ' call failed with status ' + response.status);
+      }
+
+      const data = await response.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      // Empty response — retryable
+      if (!text) {
+        lastError = new Error('Empty response from ' + label + '.');
+        console.warn('[llmService] Empty response from ' + label + ' on attempt ' + attempt + '/' + MAX_RETRIES + '.');
+        if (attempt < MAX_RETRIES) { await sleep(BASE_DELAY_MS * attempt); continue; }
+        throw lastError;
+      }
+
+      // Strip markdown code fences if model wraps JSON in them
+      const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+      try {
+        return JSON.parse(cleaned);
+      } catch (err) {
+        console.error('[llmService] Failed to parse JSON from ' + label + ':\n', cleaned);
+        throw new Error('LLM returned invalid JSON. Please try again.');
+      }
+
+    } catch (err) {
+      // Network-level errors — retry
+      if (attempt < MAX_RETRIES && (err.code === 'ECONNRESET' || err.message.includes('fetch'))) {
+        lastError = err;
+        const waitMs = BASE_DELAY_MS * attempt;
+        console.warn('[llmService] ' + label + ' network error on attempt ' + attempt + '. Retrying in ' + (waitMs / 1000) + 's...');
+        await sleep(waitMs);
+        continue;
+      }
+      throw err;
+    }
   }
 
-  const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  throw lastError || new Error(label + ' failed after ' + MAX_RETRIES + ' attempts.');
+}
 
-  if (!text) {
-    throw new Error('Empty response received from Gemini.');
-  }
+// ─────────────────────────────────────────────────────────────────────────────
+// callLLM(prompt)
+//
+// Primary:  gemini-2.5-flash  using GEMINI_API_KEY
+// Fallback: gemini-2.5-flash-lite  using GEMINI_API_KEY_2
+//
+// If the primary fails for any reason, the fallback is tried automatically.
+// ─────────────────────────────────────────────────────────────────────────────
+async function callLLM(prompt) {
+  const primaryKey  = process.env.GEMINI_API_KEY;
+  const fallbackKey = process.env.GEMINI_API_KEY_2;
 
-  // Gemini sometimes wraps JSON in markdown code blocks — strip them
-  const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-
+  // ── Try Primary ─────────────────────────────────────────────────────────────
   try {
-    return JSON.parse(cleaned);
-  } catch (err) {
-    console.error('[llmService] Failed to parse Gemini response as JSON:', cleaned);
-    throw new Error('LLM returned invalid JSON. Please try again.');
+    console.log('[llmService] Using primary: gemini-2.5-flash');
+    return await callGeminiWithKey(prompt, primaryKey, 'gemini-2.5-flash', 'Primary (2.5-flash)');
+  } catch (primaryErr) {
+    console.warn('[llmService] Primary failed: ' + primaryErr.message);
+
+    // ── Try Fallback ───────────────────────────────────────────────────────────
+    if (!fallbackKey) {
+      console.warn('[llmService] No GEMINI_API_KEY_2 set — skipping fallback.');
+      throw primaryErr;
+    }
+
+    try {
+      console.log('[llmService] Switching to fallback: gemini-2.5-flash-lite');
+      return await callGeminiWithKey(prompt, fallbackKey, 'gemini-2.5-flash-lite', 'Fallback (2.5-flash-lite)');
+    } catch (fallbackErr) {
+      console.error('[llmService] Fallback also failed: ' + fallbackErr.message);
+      // Throw a combined message so the user knows both were tried
+      throw new Error(
+        'Both Gemini providers failed.\n' +
+        '  Primary (2.5-flash): ' + primaryErr.message + '\n' +
+        '  Fallback (2.5-flash-lite): ' + fallbackErr.message
+      );
+    }
   }
 }
 
@@ -100,7 +219,7 @@ Apache Log Entries:
 ${logText}
 `;
 
-  return await callGemini(prompt);
+  return await callLLM(prompt);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -143,7 +262,7 @@ Apache Log Entries:
 ${logText}
 `;
 
-  return await callGemini(prompt);
+  return await callLLM(prompt);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -183,7 +302,7 @@ Apache Error Log Entries:
 ${logText}
 `;
 
-  return await callGemini(prompt);
+  return await callLLM(prompt);
 }
 
 module.exports = {

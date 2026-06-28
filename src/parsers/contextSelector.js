@@ -124,11 +124,30 @@ function getTimelineContext() {
  * @returns {Object[]} Array of log objects to send to the LLM
  */
 function getRootCauseContext() {
-  // Focus only on error-level logs — these are what root cause is about
-  const errorLogs = getLogsByLevel('error');
+  // Priority 1: error-level logs (ideal for root cause)
+  let candidates = getLogsByLevel('error');
 
-  // Deduplicate (keep max 3 of each repeated error)
-  const deduped = deduplicate(errorLogs, 3);
+  // Priority 2: if no errors, use warn-level logs
+  if (candidates.length === 0) {
+    console.log('[contextSelector] No error logs found — falling back to warn-level logs for root cause.');
+    candidates = getLogsByLevel('warn');
+  }
+
+  // Priority 3: if still nothing, use a spread sample of all logs
+  // (dataset may be entirely INFO-level e.g. HDFS)
+  if (candidates.length === 0) {
+    console.log('[contextSelector] No error/warn logs found — using spread sample of all logs for root cause.');
+    const allLogs = getAllLogs();
+    const step    = Math.max(1, Math.floor(allLogs.length / MAX_LOGS_PER_REQUEST));
+    for (let i = 0; i < allLogs.length; i += step) {
+      candidates.push(allLogs[i]);
+      if (candidates.length >= MAX_LOGS_PER_REQUEST) break;
+    }
+    return candidates;
+  }
+
+  // Deduplicate (keep max 3 of each repeated message)
+  const deduped = deduplicate(candidates, 3);
 
   // Cap at MAX_LOGS_PER_REQUEST
   return deduped.slice(0, MAX_LOGS_PER_REQUEST);
