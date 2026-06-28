@@ -100,7 +100,8 @@ async function callGeminiWithKey(prompt, apiKey, model, label) {
           generationConfig: {
             temperature:     0.2,   // Lower = more deterministic / factual
             topP:            0.85,
-            maxOutputTokens: 4096
+            maxOutputTokens: 4096,
+            responseMimeType: 'application/json'
           }
         })
       });

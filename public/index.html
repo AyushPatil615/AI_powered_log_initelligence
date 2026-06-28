@@ -815,6 +815,28 @@
       color: #b91c1c;
       display: block;
     }
+
+    /* ── Mobile Responsiveness ── */
+    @media (max-width: 768px) {
+      header { padding: 0 16px; justify-content: space-between; }
+      header h1 { font-size: 14px; }
+      .logo { width: 32px; height: 32px; font-size: 12px; }
+      .live-badge { position: relative; right: 0; padding: 4px 8px; font-size: 10px; }
+      main { padding: 24px 16px 80px; }
+      .page-header h2 { font-size: 24px; }
+      .tabs { flex-wrap: wrap; }
+      .tab-btn { flex: 1 1 calc(50% - 6px); font-size: 12px; padding: 8px; }
+      .card { padding: 20px 16px; }
+      .run-btn { width: 100%; justify-content: center; }
+      .dataset-actions { flex-direction: column; }
+      .btn-secondary { width: 100%; justify-content: center; }
+      .sum-grid, .ds-stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .result-toolbar { flex-direction: column; align-items: stretch; }
+      .toolbar-btn { flex: 1; }
+      #stats-toggle { padding: 12px 6px; font-size: 9px; }
+      #stats-panel { min-width: 140px; padding: 14px 12px; }
+      .dataset-status-bar { flex-direction: column; align-items: flex-start; gap: 4px; }
+    }
   </style>
 </head>
 <body>
