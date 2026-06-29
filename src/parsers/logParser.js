@@ -15,14 +15,14 @@ const APACHE_REGEX = /^\[([^\]]+)\]\s+\[([^\]]+)\]\s+(?:\[client\s+([\d.:/]+)\]\
 const SYSLOG_REGEX = /^(\w{3}\s+\d{1,2}\s+[\d:]+)\s+\S+\s+\S+\[\d+\]:\s+(.+)$/;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Format 4: HDFS / Hadoop log (loghub format)
+// Format 3: HDFS / Hadoop log (loghub format)
 // YYMMDD HHMMSS PID LEVEL ClassName: message
 // e.g. 081109 203615 148 INFO dfs.DataNode$DataXceiver: Receiving block blk_...
 // ─────────────────────────────────────────────────────────────────────────────
 const HDFS_REGEX = /^(\d{6}\s+\d{6})\s+\d+\s+(INFO|WARN|ERROR|DEBUG|FATAL)\s+[\w.$]+:\s+(.+)$/;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Format 3: Nginx access log
+// Format 4: Nginx access log
 // IP - - [DD/Mon/YYYY:HH:MM:SS +ZZZZ] "METHOD /path HTTP/1.x" STATUS bytes
 // ─────────────────────────────────────────────────────────────────────────────
 const NGINX_REGEX = /^([\d.]+)\s+-\s+-\s+\[([^\]]+)\]\s+"([^"]+)"\s+(\d{3})\s+(\d+)/;

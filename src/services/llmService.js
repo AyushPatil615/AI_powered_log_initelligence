@@ -7,11 +7,11 @@ const { getFingerprint, getLoadedFileName, getStats } = require('./inMemoryStore
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
 const MAX_RETRIES   = 3;
-const BASE_DELAY_MS = 5000;
+const BASE_DELAY_MS = 2000;
 
 // The model names for primary / fallback
-const PRIMARY_MODEL  = 'gemini-2.5-flash';
-const FALLBACK_MODEL = 'gemini-2.5-flash-lite';
+const PRIMARY_MODEL  = 'gemini-2.5-flash';      // Confirmed working on free tier
+const FALLBACK_MODEL = 'gemini-2.5-flash-lite'; // Lighter fallback
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper: sleep
@@ -85,7 +85,7 @@ function buildDatasetContext() {
 // Single Gemini REST call with exponential-backoff retry.
 // Returns a parsed JSON object on success; throws on exhausted retries.
 // ─────────────────────────────────────────────────────────────────────────────
-async function callGeminiWithKey(prompt, apiKey, model, label) {
+async function callGeminiWithKey(prompt, apiKey, model, label, maxOutputTokens) {
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent';
 
   let lastError = null;
@@ -100,7 +100,7 @@ async function callGeminiWithKey(prompt, apiKey, model, label) {
           generationConfig: {
             temperature:     0.2,   // Lower = more deterministic / factual
             topP:            0.85,
-            maxOutputTokens: 4096,
+            maxOutputTokens: maxOutputTokens || 2048,
             responseMimeType: 'application/json'
           }
         })
@@ -183,7 +183,7 @@ async function callGeminiWithKey(prompt, apiKey, model, label) {
 // If the primary fails for any reason, the fallback is tried automatically.
 // Results are cached by cacheKey to avoid redundant Gemini calls.
 // ─────────────────────────────────────────────────────────────────────────────
-async function callLLM(prompt, cacheKey) {
+async function callLLM(prompt, cacheKey, maxOutputTokens) {
   // ── Cache check ────────────────────────────────────────────────────────────
   if (cacheKey) {
     const cached = cache.get(cacheKey);
@@ -202,7 +202,7 @@ async function callLLM(prompt, cacheKey) {
   // ── Try Primary ────────────────────────────────────────────────────────────
   try {
     console.log('[llmService] Using primary: ' + PRIMARY_MODEL);
-    result    = await callGeminiWithKey(prompt, primaryKey, PRIMARY_MODEL, 'Primary (' + PRIMARY_MODEL + ')');
+    result    = await callGeminiWithKey(prompt, primaryKey, PRIMARY_MODEL, 'Primary (' + PRIMARY_MODEL + ')', maxOutputTokens);
     modelUsed = PRIMARY_MODEL;
   } catch (primaryErr) {
     console.warn('[llmService] Primary failed: ' + primaryErr.message);
@@ -215,7 +215,7 @@ async function callLLM(prompt, cacheKey) {
 
     try {
       console.log('[llmService] Switching to fallback: ' + FALLBACK_MODEL);
-      result    = await callGeminiWithKey(prompt, fallbackKey, FALLBACK_MODEL, 'Fallback (' + FALLBACK_MODEL + ')');
+      result    = await callGeminiWithKey(prompt, fallbackKey, FALLBACK_MODEL, 'Fallback (' + FALLBACK_MODEL + ')', maxOutputTokens);
       modelUsed = FALLBACK_MODEL;
     } catch (fallbackErr) {
       console.error('[llmService] Fallback also failed: ' + fallbackErr.message);
@@ -296,7 +296,7 @@ OUTPUT RULES:
 LOG ENTRIES:
 ${logText}`;
 
-  return await callLLM(prompt, cacheKey);
+  return await callLLM(prompt, cacheKey, 2048); // 30 logs × ~60 tokens = ~1800 max needed
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -353,7 +353,7 @@ OUTPUT RULES:
 LOG ENTRIES (chronological):
 ${logText}`;
 
-  return await callLLM(prompt, cacheKey);
+  return await callLLM(prompt, cacheKey, 1500); // 5-8 timeline events fits in 1500 tokens
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -423,7 +423,7 @@ OUTPUT RULES:
 LOG ENTRIES:
 ${logText}`;
 
-  return await callLLM(prompt, cacheKey);
+  return await callLLM(prompt, cacheKey, 1500); // single root cause JSON fits in 1500 tokens
 }
 
 module.exports = {

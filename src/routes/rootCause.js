@@ -62,7 +62,7 @@ router.post('/', async function (req, res) {
     return res.status(500).json({
       success:          false,
       message:          error.message || 'Root cause analysis failed.',
-      processingTimeMs: Date.now() - startTime,
+      processingTimeMs: parseFloat((performance.now() - startTime).toFixed(2)),
       data:             null
     });
   }

@@ -2,6 +2,8 @@ const path    = require('path');
 const { parseLogFile } = require('../parsers/logParser');
 const cache   = require('./cacheService');
 
+const DEFAULT_LOG_FILE = path.resolve(__dirname, '../../dataset/Apache_2k.log');
+
 // ─── In-memory store ────────────────────────────────────────────────────────
 // Logs are parsed ONCE at startup and stored here.
 // No database is used — all processing is done in memory.
@@ -9,15 +11,13 @@ const cache   = require('./cacheService');
 
 let logs            = [];
 let isLoaded        = false;
-let currentFilePath = path.resolve(__dirname, '../../dataset/Apache_2k.log');
+let currentFilePath = DEFAULT_LOG_FILE;
 let currentFileName = 'Apache_2k.log (sample)';
 
 // Pre-computed indices — rebuilt on every load/reload for O(1) look-ups at request time
 let _byLevel    = {};  // level  → Log[]
 let _byCategory = {};  // category → Log[]
 let _fingerprint = ''; // changes whenever the dataset changes — used as cache key prefix
-
-const DEFAULT_LOG_FILE = path.resolve(__dirname, '../../dataset/Apache_2k.log');
 
 // ─── Private: build indices ──────────────────────────────────────────────────
 function _buildIndices() {
@@ -36,9 +36,12 @@ function _buildIndices() {
     _byCategory[cat].push(log);
   });
 
-  // Simple fingerprint: total log count + first + last raw line (fast, deterministic)
+  // Fingerprint: count + first + middle + last — prevents collision between
+  // different datasets that share the same line count and boundary entries
+  const mid = Math.floor(logs.length / 2);
   _fingerprint = String(logs.length) + '|' +
                  (logs[0]?.raw || '') + '|' +
+                 (logs[mid]?.raw || '') + '|' +
                  (logs[logs.length - 1]?.raw || '');
 
   console.log('[inMemoryStore] Indices built. Fingerprint: ' + _fingerprint.substring(0, 60) + '...');
