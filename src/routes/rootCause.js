@@ -1,8 +1,8 @@
 const express = require('express');
-const router  = express.Router();
-const { analyzeRootCause }      = require('../services/llmService');
-const { getRootCauseContext }   = require('../parsers/contextSelector');
-const { getLoadedFileName }     = require('../services/inMemoryStore');
+const router = express.Router();
+const { analyzeRootCause } = require('../services/llmService');
+const { getRootCauseContext } = require('../parsers/contextSelector');
+const { getLoadedFileName } = require('../services/inMemoryStore');
 
 /**
  * POST /api/ai/root-cause-analysis
@@ -38,32 +38,32 @@ router.post('/', async function (req, res) {
     const result = await analyzeRootCause(contextLogs);
 
     return res.status(200).json({
-      success:          true,
-      message:          'Root cause analysis completed successfully.',
+      success: true,
+      message: 'Root cause analysis completed successfully.',
       processingTimeMs: parseFloat((performance.now() - startTime).toFixed(2)),
-      model:            result._model     || 'gemini-2.5-flash',
-      fromCache:        result._fromCache || false,
-      dataset:          getLoadedFileName(),
+      model: result._model || 'gemini-2.5-flash',
+      fromCache: result._fromCache || false,
+      dataset: getLoadedFileName(),
       data: {
-        logsAnalyzed:        contextLogs.length,
-        rootCause:           result.rootCause            || '',
-        evidence:            result.evidence             || [],
-        impact:              result.impact               || '',
+        logsAnalyzed: contextLogs.length,
+        rootCause: result.rootCause || '',
+        evidence: result.evidence || [],
+        impact: result.impact || '',
         // Support both old (recommendation) and new (remediationSteps) prompt schemas
-        remediationSteps:    result.remediationSteps     || (result.recommendation ? [result.recommendation] : []),
-        confidence:          result.confidence           ?? null,
+        remediationSteps: result.remediationSteps || (result.recommendation ? [result.recommendation] : []),
+        confidence: result.confidence ?? null,
         confidenceRationale: result.confidenceRationale || '',
-        affectedComponents:  result.affectedComponents  || []
+        affectedComponents: result.affectedComponents || []
       }
     });
 
   } catch (error) {
     console.error('[rootCause] Error:', error.message);
     return res.status(500).json({
-      success:          false,
-      message:          error.message || 'Root cause analysis failed.',
+      success: false,
+      message: error.message || 'Root cause analysis failed.',
       processingTimeMs: parseFloat((performance.now() - startTime).toFixed(2)),
-      data:             null
+      data: null
     });
   }
 });

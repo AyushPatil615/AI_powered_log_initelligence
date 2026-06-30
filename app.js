@@ -1,10 +1,10 @@
 require('dotenv').config();
 
 const express = require('express');
-const cors    = require('cors');
-const path    = require('path');
-const multer  = require('multer');
-const fs      = require('fs');
+const cors = require('cors');
+const path = require('path');
+const multer = require('multer');
+const fs = require('fs');
 
 // ─── Multer: save uploaded logs to /dataset/ folder ───────────────────────────
 const storage = multer.diskStorage({
@@ -18,7 +18,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage: storage,
-  limits:  { fileSize: 50 * 1024 * 1024 }, // 50 MB
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
   fileFilter: function (req, file, cb) {
     cb(null, true); // Accept any text/log file
   }
@@ -29,10 +29,10 @@ const { loadLogs, reloadLogs, getLoadedFileName, getStats } = require('./src/ser
 const cache = require('./src/services/cacheService');
 
 const classificationRoute = require('./src/routes/classification');
-const timelineRoute        = require('./src/routes/timeline');
-const rootCauseRoute       = require('./src/routes/rootCause');
+const timelineRoute = require('./src/routes/timeline');
+const rootCauseRoute = require('./src/routes/rootCause');
 
-const app  = express();
+const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ─── Middleware ────────────────────────────────────────────────────────────────
@@ -46,27 +46,27 @@ app.use(express.static(path.join(__dirname, 'public')));
 loadLogs();
 
 // ─── AI Feature Routes ─────────────────────────────────────────────────────────
-app.use('/api/ai/log-classification',  classificationRoute);
-app.use('/api/ai/incident-timeline',   timelineRoute);
+app.use('/api/ai/log-classification', classificationRoute);
+app.use('/api/ai/incident-timeline', timelineRoute);
 app.use('/api/ai/root-cause-analysis', rootCauseRoute);
 
 // ─── Health Check ──────────────────────────────────────────────────────────────
 app.get('/api/health', function (req, res) {
   res.json({
-    success:    true,
-    message:    'AI Log Intelligence Engine is running.',
-    dataset:    getLoadedFileName(),
+    success: true,
+    message: 'AI Log Intelligence Engine is running.',
+    dataset: getLoadedFileName(),
     cacheStats: cache.stats(),
-    data:       getStats()
+    data: getStats()
   });
 });
 
 // ─── Dataset Info ───────────────────────────────────────────────────────────────
 app.get('/api/dataset-info', function (req, res) {
   res.json({
-    success:  true,
+    success: true,
     fileName: getLoadedFileName(),
-    stats:    getStats()
+    stats: getStats()
   });
 });
 
@@ -75,7 +75,7 @@ app.get('/api/cache-stats', function (req, res) {
   res.json({
     success: true,
     message: 'AI response cache statistics.',
-    data:    cache.stats()
+    data: cache.stats()
   });
 });
 
@@ -87,10 +87,10 @@ app.post('/api/upload-dataset', upload.single('logfile'), function (req, res) {
   try {
     reloadLogs(req.file.path, req.file.originalname);
     res.json({
-      success:  true,
-      message:  'Dataset loaded successfully.',
+      success: true,
+      message: 'Dataset loaded successfully.',
       fileName: req.file.originalname,
-      stats:    getStats()
+      stats: getStats()
     });
   } catch (err) {
     fs.unlinkSync(req.file.path);
@@ -104,10 +104,10 @@ app.post('/api/load-sample', function (req, res) {
     const samplePath = path.resolve(__dirname, 'dataset/Apache_2k.log');
     reloadLogs(samplePath, 'Apache_2k.log (sample)');
     res.json({
-      success:  true,
-      message:  'Sample dataset loaded.',
+      success: true,
+      message: 'Sample dataset loaded.',
       fileName: 'Apache_2k.log (sample)',
-      stats:    getStats()
+      stats: getStats()
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -119,7 +119,7 @@ app.use(function (req, res) {
   res.status(404).json({
     success: false,
     message: 'Route not found.',
-    data:    null
+    data: null
   });
 });
 
@@ -129,7 +129,7 @@ app.use(function (err, req, res, next) {
   res.status(500).json({
     success: false,
     message: 'Internal server error.',
-    data:    null
+    data: null
   });
 });
 

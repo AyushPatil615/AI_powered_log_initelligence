@@ -1,8 +1,8 @@
 const express = require('express');
-const router  = express.Router();
-const { generateTimeline }    = require('../services/llmService');
-const { getTimelineContext }  = require('../parsers/contextSelector');
-const { getLoadedFileName }   = require('../services/inMemoryStore');
+const router = express.Router();
+const { generateTimeline } = require('../services/llmService');
+const { getTimelineContext } = require('../parsers/contextSelector');
+const { getLoadedFileName } = require('../services/inMemoryStore');
 
 /**
  * POST /api/ai/incident-timeline
@@ -38,26 +38,26 @@ router.post('/', async function (req, res) {
     const result = await generateTimeline(contextLogs);
 
     return res.status(200).json({
-      success:          true,
-      message:          'Incident timeline generated successfully.',
+      success: true,
+      message: 'Incident timeline generated successfully.',
       processingTimeMs: parseFloat((performance.now() - startTime).toFixed(2)),
-      model:            result._model     || 'gemini-2.5-flash',
-      fromCache:        result._fromCache || false,
-      dataset:          getLoadedFileName(),
+      model: result._model || 'gemini-2.5-flash',
+      fromCache: result._fromCache || false,
+      dataset: getLoadedFileName(),
       data: {
         logsAnalyzed: contextLogs.length,
-        totalEvents:  result.timeline?.length || 0,
-        timeline:     result.timeline || []
+        totalEvents: result.timeline?.length || 0,
+        timeline: result.timeline || []
       }
     });
 
   } catch (error) {
     console.error('[timeline] Error:', error.message);
     return res.status(500).json({
-      success:          false,
-      message:          error.message || 'Timeline generation failed.',
+      success: false,
+      message: error.message || 'Timeline generation failed.',
       processingTimeMs: parseFloat((performance.now() - startTime).toFixed(2)),
-      data:             null
+      data: null
     });
   }
 });

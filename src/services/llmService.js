@@ -6,11 +6,11 @@ const { getFingerprint, getLoadedFileName, getStats } = require('./inMemoryStore
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
-const MAX_RETRIES   = 3;
+const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 2000;
 
 // The model names for primary / fallback
-const PRIMARY_MODEL  = 'gemini-2.5-flash';      // Confirmed working on free tier
+const PRIMARY_MODEL = 'gemini-2.5-flash';      // Confirmed working on free tier
 const FALLBACK_MODEL = 'gemini-2.5-flash-lite'; // Lighter fallback
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -55,7 +55,7 @@ function formatLogsForPrompt(logs) {
 function buildDatasetContext() {
   try {
     const stats = getStats();
-    const cats  = stats.categoryBreakdown || {};
+    const cats = stats.categoryBreakdown || {};
     const catSummary = Object.entries(cats)
       .sort(function (a, b) { return b[1] - a[1]; })
       .slice(0, 6)
@@ -64,15 +64,15 @@ function buildDatasetContext() {
 
     return (
       'DATASET CONTEXT (do not analyse these lines — use for calibration only):\n' +
-      '  File: '         + getLoadedFileName()          + '\n' +
-      '  Total logs: '   + stats.total                  + '\n' +
-      '  Errors: '       + stats.errorCount              + '\n' +
-      '  Warnings: '     + (stats.warnCount || 0)        + '\n' +
-      '  Notices: '      + stats.noticeCount             + '\n' +
-      '  Unique IPs: '   + stats.uniqueClientIps         + '\n' +
-      '  Top categories: ' + (catSummary || 'N/A')       + '\n' +
-      '  Time range: '   + (stats.timeRange?.first || '?') +
-                  ' → '  + (stats.timeRange?.last  || '?') + '\n'
+      '  File: ' + getLoadedFileName() + '\n' +
+      '  Total logs: ' + stats.total + '\n' +
+      '  Errors: ' + stats.errorCount + '\n' +
+      '  Warnings: ' + (stats.warnCount || 0) + '\n' +
+      '  Notices: ' + stats.noticeCount + '\n' +
+      '  Unique IPs: ' + stats.uniqueClientIps + '\n' +
+      '  Top categories: ' + (catSummary || 'N/A') + '\n' +
+      '  Time range: ' + (stats.timeRange?.first || '?') +
+      ' → ' + (stats.timeRange?.last || '?') + '\n'
     );
   } catch (_) {
     return '';
@@ -93,13 +93,13 @@ async function callGeminiWithKey(prompt, apiKey, model, label, maxOutputTokens) 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       const response = await fetch(url, {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
-            temperature:     0.2,   // Lower = more deterministic / factual
-            topP:            0.85,
+            temperature: 0.2,   // Lower = more deterministic / factual
+            topP: 0.85,
             maxOutputTokens: maxOutputTokens || 2048,
             responseMimeType: 'application/json'
           }
@@ -109,9 +109,9 @@ async function callGeminiWithKey(prompt, apiKey, model, label, maxOutputTokens) 
       // Rate limit / overload — honour Gemini's retry-after header / body
       if (response.status === 429 || response.status === 503) {
         const errData = await response.json().catch(function () { return {}; });
-        const errMsg  = errData.error?.message || '';
+        const errMsg = errData.error?.message || '';
         const retryAfterHeader = response.headers.get('Retry-After');
-        const waitMs  =
+        const waitMs =
           parseRetryDelay(errMsg) ||
           (retryAfterHeader ? parseInt(retryAfterHeader, 10) * 1000 : null) ||
           BASE_DELAY_MS * Math.pow(2, attempt - 1);
@@ -193,7 +193,7 @@ async function callLLM(prompt, cacheKey, maxOutputTokens) {
     }
   }
 
-  const primaryKey  = process.env.GEMINI_API_KEY;
+  const primaryKey = process.env.GEMINI_API_KEY;
   const fallbackKey = process.env.GEMINI_API_KEY_2;
 
   let result;
@@ -202,7 +202,7 @@ async function callLLM(prompt, cacheKey, maxOutputTokens) {
   // ── Try Primary ────────────────────────────────────────────────────────────
   try {
     console.log('[llmService] Using primary: ' + PRIMARY_MODEL);
-    result    = await callGeminiWithKey(prompt, primaryKey, PRIMARY_MODEL, 'Primary (' + PRIMARY_MODEL + ')', maxOutputTokens);
+    result = await callGeminiWithKey(prompt, primaryKey, PRIMARY_MODEL, 'Primary (' + PRIMARY_MODEL + ')', maxOutputTokens);
     modelUsed = PRIMARY_MODEL;
   } catch (primaryErr) {
     console.warn('[llmService] Primary failed: ' + primaryErr.message);
@@ -215,13 +215,13 @@ async function callLLM(prompt, cacheKey, maxOutputTokens) {
 
     try {
       console.log('[llmService] Switching to fallback: ' + FALLBACK_MODEL);
-      result    = await callGeminiWithKey(prompt, fallbackKey, FALLBACK_MODEL, 'Fallback (' + FALLBACK_MODEL + ')', maxOutputTokens);
+      result = await callGeminiWithKey(prompt, fallbackKey, FALLBACK_MODEL, 'Fallback (' + FALLBACK_MODEL + ')', maxOutputTokens);
       modelUsed = FALLBACK_MODEL;
     } catch (fallbackErr) {
       console.error('[llmService] Fallback also failed: ' + fallbackErr.message);
       throw new Error(
         'Both Gemini providers failed.\n' +
-        '  Primary (' + PRIMARY_MODEL + '): '  + primaryErr.message + '\n' +
+        '  Primary (' + PRIMARY_MODEL + '): ' + primaryErr.message + '\n' +
         '  Fallback (' + FALLBACK_MODEL + '): ' + fallbackErr.message
       );
     }
@@ -256,7 +256,7 @@ async function callLLM(prompt, cacheKey, maxOutputTokens) {
  * @returns {Object} JSON response with classifications array
  */
 async function classifyLogs(logs) {
-  const logText   = formatLogsForPrompt(logs);
+  const logText = formatLogsForPrompt(logs);
   const dsContext = buildDatasetContext();
 
   // Cache key: feature + dataset fingerprint + sample of first/last log line numbers
@@ -316,11 +316,11 @@ ${logText}`;
  * @returns {Object} JSON response with timeline array
  */
 async function generateTimeline(logs) {
-  const logText   = formatLogsForPrompt(logs);
+  const logText = formatLogsForPrompt(logs);
   const dsContext = buildDatasetContext();
-  const cacheKey  = 'timeline|' + getFingerprint();
+  const cacheKey = 'timeline|' + getFingerprint();
 
-  const prompt = `ROLE: SRE performing incident timeline reconstruction from Apache server logs.
+  const prompt = `ROLE: SRE performing incident timeline reconstruction from server logs.
 Base ALL conclusions strictly on the log entries provided — do not assume events not present in the data.
 
 ${dsContext}
@@ -374,11 +374,11 @@ ${logText}`;
  * @returns {Object} JSON response with root cause details
  */
 async function analyzeRootCause(logs) {
-  const logText   = formatLogsForPrompt(logs);
+  const logText = formatLogsForPrompt(logs);
   const dsContext = buildDatasetContext();
-  const cacheKey  = 'rootcause|' + getFingerprint();
+  const cacheKey = 'rootcause|' + getFingerprint();
 
-  const prompt = `ROLE: SRE performing formal root cause analysis on Apache server logs.
+  const prompt = `ROLE: SRE performing formal root cause analysis on server logs.
 Base ALL findings strictly on the logs provided. Do not speculate about causes absent from the evidence.
 
 ${dsContext}
