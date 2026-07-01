@@ -25,7 +25,7 @@ router.post('/', async function (req, res) {
   const startTime = performance.now();
 
   // ── Input validation ────────────────────────────────────────────────────────
-  const providedLogs = req.body.logs;
+  const providedLogs = (req.body || {}).logs;
   if (providedLogs !== undefined && !Array.isArray(providedLogs)) {
     return res.status(400).json({
       success: false,
